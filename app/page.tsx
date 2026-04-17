@@ -1,65 +1,165 @@
-import Image from "next/image";
+"use client";
+
+import dynamic from "next/dynamic";
+import React, { useState } from "react";
+import { Toolbar } from "@/components/Toolbar";
+import { Sidebar } from "@/components/Sidebar";
+import { ResizableSplit } from "@/components/ResizableSplit";
+import { MermaidPreview } from "@/components/MermaidPreview";
+import { ChatPanel } from "@/components/ChatPanel";
+import { Code2, Eye, LayoutPanelLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+// Monaco must be loaded dynamically (no SSR)
+const MonacoEditor = dynamic(
+  () => import("@/components/MonacoEditor").then((m) => m.MonacoEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-[#1e1e1e]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="text-xs text-muted-foreground">Loading editor…</span>
+        </div>
+      </div>
+    ),
+  }
+);
+
+type ViewMode = "split" | "editor" | "preview";
 
 export default function Home() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="flex h-full flex-col overflow-hidden">
+      <Toolbar chatOpen={chatOpen} onChatToggle={() => setChatOpen((v) => !v)} />
+
+      {/* View mode bar */}
+      <div className="flex h-9 items-center gap-1 border-b border-border bg-background/95 px-3 shrink-0">
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode("split")}
+            className={cn(
+              "h-6 gap-1.5 px-2.5 text-xs rounded-md transition-all",
+              viewMode === "split"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <LayoutPanelLeft className="h-3 w-3" />
+            Split
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode("editor")}
+            className={cn(
+              "h-6 gap-1.5 px-2.5 text-xs rounded-md transition-all",
+              viewMode === "editor"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            Documentation
-          </a>
+            <Code2 className="h-3 w-3" />
+            Editor
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode("preview")}
+            className={cn(
+              "h-6 gap-1.5 px-2.5 text-xs rounded-md transition-all",
+              viewMode === "preview"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Eye className="h-3 w-3" />
+            Preview
+          </Button>
         </div>
-      </main>
+
+        <div className="flex-1" />
+
+        <span className="text-xs text-muted-foreground/60 hidden md:block">
+          Drag the divider to resize · Scroll to zoom preview
+        </span>
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Sidebar */}
+        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
+
+        {/* Editor + Preview */}
+        <div className="flex flex-1 min-w-0 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            {viewMode === "split" && (
+              <ResizableSplit
+                left={
+                  <div className="flex h-full flex-col">
+                    <div className="flex h-8 items-center gap-2 border-b border-border bg-muted/30 px-3 shrink-0">
+                      <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Mermaid
+                      </span>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      <MonacoEditor />
+                    </div>
+                  </div>
+                }
+                right={
+                  <div className="flex h-full flex-col">
+                    <div className="flex h-8 items-center gap-2 border-b border-border bg-muted/30 px-3 shrink-0">
+                      <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Preview
+                      </span>
+                    </div>
+                    <div className="flex-1 min-h-0 mermaid-preview-content">
+                      <MermaidPreview />
+                    </div>
+                  </div>
+                }
+              />
+            )}
+
+            {viewMode === "editor" && (
+              <div className="flex h-full flex-col">
+                <div className="flex h-8 items-center gap-2 border-b border-border bg-muted/30 px-3 shrink-0">
+                  <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Mermaid</span>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <MonacoEditor />
+                </div>
+              </div>
+            )}
+
+            {viewMode === "preview" && (
+              <div className="flex h-full flex-col">
+                <div className="flex h-8 items-center gap-2 border-b border-border bg-muted/30 px-3 shrink-0">
+                  <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Preview</span>
+                </div>
+                <div className="flex-1 min-h-0 mermaid-preview-content">
+                  <MermaidPreview />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* AI Chat Panel */}
+          {chatOpen && <ChatPanel onClose={() => setChatOpen(false)} />}
+        </div>
+      </div>
     </div>
   );
 }
