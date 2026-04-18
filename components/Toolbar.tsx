@@ -1,14 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
-import { Save, FilePlus, Pencil, Check, GitBranch, Sparkles } from "lucide-react";
+import { Save, FilePlus, Pencil, Check, GitBranch, Sparkles, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportButton } from "@/components/ExportButton";
-import { useDiagramStore } from "@/lib/store";
+import { ThemeCustomizer } from "@/components/ThemeCustomizer";
+import { useDiagramStore, MermaidTheme } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/lib/utils";
+
+const MERMAID_THEMES: { value: MermaidTheme; label: string; description: string }[] = [
+  { value: "default", label: "Default", description: "Standard theme" },
+  { value: "neutral", label: "Neutral", description: "Black & white friendly" },
+  { value: "dark", label: "Dark", description: "Dark mode optimized" },
+  { value: "forest", label: "Forest", description: "Shades of green" },
+  { value: "base", label: "Base", description: "Customizable base" },
+];
 
 interface ToolbarProps {
   chatOpen: boolean;
@@ -16,7 +25,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ chatOpen, onChatToggle }: ToolbarProps) {
-  const { diagramName, currentId, setDiagramName, saveDiagram, newDiagram } =
+  const { diagramName, currentId, setDiagramName, saveDiagram, newDiagram, mermaidTheme, setMermaidTheme } =
     useDiagramStore(
       useShallow((s) => ({
         diagramName: s.diagramName,
@@ -24,6 +33,8 @@ export function Toolbar({ chatOpen, onChatToggle }: ToolbarProps) {
         setDiagramName: s.setDiagramName,
         saveDiagram: s.saveDiagram,
         newDiagram: s.newDiagram,
+        mermaidTheme: s.mermaidTheme,
+        setMermaidTheme: s.setMermaidTheme,
       }))
     );
 
@@ -136,6 +147,26 @@ export function Toolbar({ chatOpen, onChatToggle }: ToolbarProps) {
         </Button>
 
         <ExportButton />
+
+        <div className="h-4 w-px bg-border" />
+
+        {/* Mermaid diagram theme selector */}
+        <div className="flex items-center gap-1">
+          <Palette className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
+          <select
+            value={mermaidTheme}
+            onChange={(e) => setMermaidTheme(e.target.value as MermaidTheme)}
+            className="h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+            title="Diagram theme"
+          >
+            {MERMAID_THEMES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          {mermaidTheme === "base" && <ThemeCustomizer />}
+        </div>
 
         <div className="h-4 w-px bg-border" />
 

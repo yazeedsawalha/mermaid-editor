@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDiagramStore } from "@/lib/store";
 import { AlertCircle, ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "next-themes";
 
 let mermaidInstance: typeof import("mermaid").default | null = null;
 
@@ -12,6 +11,22 @@ async function getMermaid() {
   if (!mermaidInstance) {
     const m = await import("mermaid");
     mermaidInstance = m.default;
+
+    // Register icon packs (lazy-loaded so they don't block initial render)
+    mermaidInstance.registerIconPacks([
+      {
+        name: "logos",
+        loader: () => import("@iconify-json/logos").then((mod) => mod.icons),
+      },
+      {
+        name: "mdi",
+        loader: () => import("@iconify-json/mdi").then((mod) => mod.icons),
+      },
+      {
+        name: "simple-icons",
+        loader: () => import("@iconify-json/simple-icons").then((mod) => mod.icons),
+      },
+    ]);
   }
   return mermaidInstance;
 }
@@ -20,7 +35,8 @@ let renderCounter = 0;
 
 export function MermaidPreview() {
   const code = useDiagramStore((s) => s.code);
-  const { resolvedTheme } = useTheme();
+  const mermaidTheme = useDiagramStore((s) => s.mermaidTheme);
+  const mermaidThemeVariables = useDiagramStore((s) => s.mermaidThemeVariables);
 
   // containerRef div is ALWAYS in the DOM — never conditionally mounted.
   // This is critical: if it unmounts on error, future renders silently fail
@@ -54,7 +70,10 @@ export function MermaidPreview() {
 
       mermaid.initialize({
         startOnLoad: false,
-        theme: resolvedTheme === "dark" ? "dark" : "default",
+        theme: mermaidTheme,
+        ...(mermaidTheme === "base" && Object.keys(mermaidThemeVariables).length > 0
+          ? { themeVariables: mermaidThemeVariables }
+          : {}),
         securityLevel: "loose",
         logLevel: 5, // suppress mermaid internal logs
         fontFamily: "system-ui, sans-serif",
@@ -90,7 +109,7 @@ export function MermaidPreview() {
       console.error = origConsoleError;
       setIsRendering(false);
     }
-  }, [code, resolvedTheme]);
+  }, [code, mermaidTheme, mermaidThemeVariables]);
 
   useEffect(() => {
     const timer = setTimeout(render, 300);
@@ -224,7 +243,7 @@ export function MermaidPreview() {
               transformOrigin: "center center",
               transition: "transform 0.08s ease",
             }}
-            className="p-8"
+            className="p-8 mermaid-output"
           />
         </div>
       </div>

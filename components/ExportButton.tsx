@@ -12,9 +12,9 @@ export function ExportButton() {
 
   const safeName = diagramName.replace(/\s+/g, "-").toLowerCase();
 
-  /** Find the rendered SVG anywhere in .mermaid-preview-content */
+  /** Find the Mermaid-rendered SVG inside the output container (not Lucide icon SVGs) */
   const getSvgElement = (): SVGSVGElement | null =>
-    document.querySelector(".mermaid-preview-content svg") as SVGSVGElement | null;
+    document.querySelector(".mermaid-output svg") as SVGSVGElement | null;
 
   const showError = (msg: string) => {
     setExportError(msg);
@@ -43,59 +43,64 @@ export function ExportButton() {
     setOpen(false);
   };
 
-  const exportPNG = () => {
+  const exportPNG = (scale: number = 4) => {
     const svg = getSvgElement();
     if (!svg) {
       showError("Switch to Preview or Split view first.");
       return;
     }
 
-    const svgClone = svg.cloneNode(true) as SVGSVGElement;
-    const bbox = svg.getBoundingClientRect();
+    // Use the SVG's intrinsic viewBox dimensions — unaffected by zoom/pan
+    const vb = svg.viewBox?.baseVal;
+    const naturalW = vb && vb.width > 0 ? vb.width : svg.getBBox().width || svg.clientWidth;
+    const naturalH = vb && vb.height > 0 ? vb.height : svg.getBBox().height || svg.clientHeight;
 
-    if (bbox.width === 0 || bbox.height === 0) {
+    if (!naturalW || !naturalH) {
       showError("Diagram has no visible area to export.");
       return;
     }
 
-    const scale = 2; // 2× retina quality
-    const w = Math.ceil(bbox.width * scale);
-    const h = Math.ceil(bbox.height * scale);
+    const w = Math.ceil(naturalW * scale);
+    const h = Math.ceil(naturalH * scale);
 
+    const svgClone = svg.cloneNode(true) as SVGSVGElement;
     svgClone.setAttribute("width", String(w));
     svgClone.setAttribute("height", String(h));
+    svgClone.setAttribute("viewBox", `0 0 ${naturalW} ${naturalH}`);
+    if (!svgClone.getAttribute("xmlns")) {
+      svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    }
 
     const serializer = new XMLSerializer();
     const svgStr = serializer.serializeToString(svgClone);
-    const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+
+    // Use a data URL instead of a blob URL — blob URLs with external resource
+    // references (fonts, icons) taint the canvas and block toBlob(). Data URLs
+    // are treated as same-origin and never taint the canvas.
+    const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
 
     const img = new Image();
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      showError("Failed to render diagram as image.");
-    };
+    img.onerror = () => showError("Failed to render diagram as image.");
 
     img.onload = () => {
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d")!;
-      // Transparent background — SVG carries its own background color
-      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
 
       canvas.toBlob((pngBlob) => {
         if (!pngBlob) {
-          showError("Failed to create PNG blob.");
+          showError("Failed to create PNG.");
           return;
         }
         const pngUrl = URL.createObjectURL(pngBlob);
         const a = document.createElement("a");
         a.href = pngUrl;
-        a.download = `${safeName}.png`;
+        a.download = `${safeName}@${scale}x.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -139,11 +144,24 @@ export function ExportButton() {
               Export SVG
             </button>
             <button
-              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-              onClick={exportPNG}
+              className="flex w-full items-center justify-between gap-2.5 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+              onClick={() => exportPNG(2)}
             >
-              <ImageIcon className="h-4 w-4 text-muted-foreground" />
-              Export PNG
+              <span className="flex items-center gap-2.5">
+                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                PNG
+              </span>
+              <span className="text-xs text-muted-foreground">2×</span>
+            </button>
+            <button
+              className="flex w-full items-center justify-between gap-2.5 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+              onClick={() => exportPNG(4)}
+            >
+              <span className="flex items-center gap-2.5">
+                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                PNG
+              </span>
+              <span className="text-xs text-muted-foreground">4× HD</span>
             </button>
           </div>
         </>

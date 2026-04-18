@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { TEMPLATES } from "./templates";
 
+export type MermaidTheme = "default" | "neutral" | "dark" | "forest" | "base";
+
 export interface SavedDiagram {
   id: string;
   name: string;
@@ -24,6 +26,8 @@ interface DiagramStore {
   isSidebarOpen: boolean;
   isTemplatesPanelOpen: boolean;
   editorTheme: "vs-dark" | "light";
+  mermaidTheme: MermaidTheme;
+  mermaidThemeVariables: Record<string, string>;
 
   // Actions
   setCode: (code: string) => void;
@@ -37,6 +41,10 @@ interface DiagramStore {
   toggleSidebar: () => void;
   toggleTemplatesPanel: () => void;
   setEditorTheme: (theme: "vs-dark" | "light") => void;
+  setMermaidTheme: (theme: MermaidTheme) => void;
+  setMermaidThemeVariable: (key: string, value: string) => void;
+  clearMermaidThemeVariable: (key: string) => void;
+  resetMermaidThemeVariables: () => void;
 }
 
 const DEFAULT_CODE = TEMPLATES[0].code;
@@ -52,6 +60,8 @@ export const useDiagramStore = create<DiagramStore>()(
       isSidebarOpen: true,
       isTemplatesPanelOpen: true,
       editorTheme: "vs-dark",
+      mermaidTheme: "default",
+      mermaidThemeVariables: {},
 
       setCode: (code) => set({ code, activeTemplateId: null }),
 
@@ -140,6 +150,20 @@ export const useDiagramStore = create<DiagramStore>()(
         set((s) => ({ isTemplatesPanelOpen: !s.isTemplatesPanelOpen })),
 
       setEditorTheme: (editorTheme) => set({ editorTheme }),
+
+      setMermaidTheme: (mermaidTheme) => set({ mermaidTheme }),
+
+      setMermaidThemeVariable: (key, value) =>
+        set((s) => ({ mermaidThemeVariables: { ...s.mermaidThemeVariables, [key]: value } })),
+
+      clearMermaidThemeVariable: (key) =>
+        set((s) => {
+          const next = { ...s.mermaidThemeVariables };
+          delete next[key];
+          return { mermaidThemeVariables: next };
+        }),
+
+      resetMermaidThemeVariables: () => set({ mermaidThemeVariables: {} }),
     }),
     {
       name: "mermaid-editor-storage",
@@ -150,6 +174,8 @@ export const useDiagramStore = create<DiagramStore>()(
         currentId: state.currentId,
         activeTemplateId: state.activeTemplateId,
         editorTheme: state.editorTheme,
+        mermaidTheme: state.mermaidTheme,
+        mermaidThemeVariables: state.mermaidThemeVariables,
       }),
     }
   )
