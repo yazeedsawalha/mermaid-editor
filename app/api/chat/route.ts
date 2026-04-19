@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { NextRequest } from "next/server";
 
 const openai = new OpenAI({
@@ -422,7 +423,7 @@ export async function POST(req: NextRequest) {
     stream: true,
     messages: [
       { role: "system", content: systemMessage },
-      ...messages,
+      ...(messages as ChatCompletionMessageParam[]),
     ],
   });
 

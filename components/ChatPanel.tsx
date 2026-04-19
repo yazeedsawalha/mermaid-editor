@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Copy, Check, Sparkles, X, Undo2 } from "lucide-react";
+import { Send, Bot, User, Copy, Check, Sparkles, X, Undo2, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDiagramStore } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  image?: string; // base64 data URL
 }
 
 interface ChatPanelProps {
@@ -31,6 +32,7 @@ function MessageBubble({
   autoApply: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [imgExpanded, setImgExpanded] = useState(false);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -124,6 +126,19 @@ function MessageBubble({
             : "bg-muted/50 border border-border rounded-tl-sm"
         )}
       >
+        {message.image && (
+          <div className="mb-2">
+            <img
+              src={message.image}
+              alt="uploaded diagram"
+              onClick={() => setImgExpanded((v) => !v)}
+              className={cn(
+                "rounded-lg cursor-pointer border border-white/20 object-cover transition-all",
+                imgExpanded ? "max-h-96 w-full" : "max-h-24 max-w-[180px]"
+              )}
+            />
+          </div>
+        )}
         {renderContent(message.content)}
       </div>
     </div>
@@ -139,7 +154,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     {
       role: "assistant",
       content:
-        "Hi! I can help you create and edit Mermaid diagrams. Describe what you want and I'll generate the code for you.\n\nFor example:\n- \"Create a flowchart for a user login process\"\n- \"Add an error state to the current diagram\"\n- \"Convert this to a sequence diagram\"",
+        "Hi! I can help you create and edit Mermaid diagrams. Describe what you want and I'll generate the code for you.\n\nFor example:\n- \"Create a flowchart for a user login process\"\n- \"Add an error state to the current diagram\"\n- \"Convert this to a sequence diagram\"\n- Upload a diagram image and ask me to convert it!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -147,8 +162,10 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [streamingContent, setStreamingContent] = useState("");
   const [autoApply, setAutoApply] = useState(true);
   const [codeHistory, setCodeHistory] = useState<string[]>([]);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null); // base64 data URL
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -166,14 +183,31 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     setCode(prev);
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAttachedImage(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    // reset so same file can be re-selected
+    e.target.value = "";
+  };
+
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+    if ((!trimmed && !attachedImage) || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: trimmed };
+    const userMessage: Message = {
+      role: "user",
+      content: trimmed || "Convert this diagram image to Mermaid code.",
+      ...(attachedImage ? { image: attachedImage } : {}),
+    };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
+    setAttachedImage(null);
     setIsLoading(true);
     setStreamingContent("");
 
@@ -189,7 +223,17 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: newMessages.map((m) =>
+            m.image
+              ? {
+                  role: m.role,
+                  content: [
+                    { type: "text", text: m.content },
+                    { type: "image_url", image_url: { url: m.image } },
+                  ],
+                }
+              : { role: m.role, content: m.content }
+          ),
           currentCode: code,
         }),
       });
@@ -327,13 +371,49 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
       {/* Input */}
       <div className="border-t border-border p-3 shrink-0">
+        {/* Image preview */}
+        {attachedImage && (
+          <div className="mb-2 relative inline-block">
+            <img
+              src={attachedImage}
+              alt="attached"
+              className="h-16 rounded-lg border border-border object-cover"
+            />
+            <button
+              onClick={() => setAttachedImage(null)}
+              className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          </div>
+        )}
+
         <div className="flex items-end gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2 focus-within:border-primary/50 transition-colors">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            title="Attach diagram image"
+          >
+            <ImagePlus className="h-3.5 w-3.5" />
+          </Button>
+
           <textarea
             ref={textareaRef}
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your diagram…"
+            placeholder={attachedImage ? "Ask AI about this image…" : "Describe your diagram…"}
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground min-h-[20px] max-h-[120px] leading-5"
             disabled={isLoading}
@@ -342,13 +422,13 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
             size="icon"
             className="h-7 w-7 shrink-0 rounded-lg"
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={(!input.trim() && !attachedImage) || isLoading}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
         <p className="mt-1.5 text-[11px] text-muted-foreground/60 text-center">
-          Enter to send · Shift+Enter for newline
+          Enter to send · Shift+Enter for newline · 📎 attach image
         </p>
       </div>
     </div>
