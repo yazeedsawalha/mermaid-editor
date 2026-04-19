@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Copy, Check, Sparkles, X, Undo2, ImagePlus } from "lucide-react";
+import { Send, Bot, User, Copy, Check, Sparkles, X, Undo2, ImagePlus, ScanSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDiagramStore } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
@@ -154,7 +154,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     {
       role: "assistant",
       content:
-        "Hi! I can help you create and edit Mermaid diagrams. Describe what you want and I'll generate the code for you.\n\nFor example:\n- \"Create a flowchart for a user login process\"\n- \"Add an error state to the current diagram\"\n- \"Convert this to a sequence diagram\"\n- Upload a diagram image and ask me to convert it!",
+        "Hi! I can help you create and edit Mermaid diagrams.\n\nYou can:\n- Describe a diagram and I'll generate it\n- Edit the current diagram with instructions\n- **Upload a diagram image** — I'll analyze it deeply, then convert it to any Mermaid type you ask for",
     },
   ]);
   const [input, setInput] = useState("");
@@ -163,6 +163,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
   const [autoApply, setAutoApply] = useState(true);
   const [codeHistory, setCodeHistory] = useState<string[]>([]);
   const [attachedImage, setAttachedImage] = useState<string | null>(null); // base64 data URL
+  const [contextImage, setContextImage] = useState<string | null>(null); // image the AI has already analyzed
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -199,15 +200,18 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     const trimmed = input.trim();
     if ((!trimmed && !attachedImage) || isLoading) return;
 
+    const imageToSend = attachedImage;
     const userMessage: Message = {
       role: "user",
-      content: trimmed || "Convert this diagram image to Mermaid code.",
-      ...(attachedImage ? { image: attachedImage } : {}),
+      content: trimmed || (imageToSend ? "Please analyze this diagram." : ""),
+      ...(imageToSend ? { image: imageToSend } : {}),
     };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
     setAttachedImage(null);
+    // Mark this image as "in context" so follow-up messages remember it
+    if (imageToSend) setContextImage(imageToSend);
     setIsLoading(true);
     setStreamingContent("");
 
@@ -338,6 +342,28 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           </Button>
         </div>
       </div>
+
+      {/* Context image banner */}
+      {contextImage && (
+        <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-3 py-1.5 shrink-0">
+          <ScanSearch className="h-3.5 w-3.5 text-primary shrink-0" />
+          <img
+            src={contextImage}
+            alt="context"
+            className="h-6 w-8 rounded object-cover border border-border shrink-0"
+          />
+          <span className="flex-1 text-[11px] text-muted-foreground leading-tight">
+            Image in context — ask me to convert it to any diagram
+          </span>
+          <button
+            onClick={() => setContextImage(null)}
+            className="text-muted-foreground hover:text-foreground"
+            title="Clear image context"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0 py-2">
