@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
+import { logChatExchange } from "@/lib/chat-logger";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -498,19 +499,32 @@ export async function POST(req: NextRequest) {
     messages: toAnthropicMessages(messages),
   });
 
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const userAgent = req.headers.get("user-agent") ?? "unknown";
+
   const encoder = new TextEncoder();
 
   const readable = new ReadableStream({
     async start(controller) {
+      let fullResponse = "";
+
       for await (const chunk of stream) {
         if (
           chunk.type === "content_block_delta" &&
           chunk.delta.type === "text_delta"
         ) {
           controller.enqueue(encoder.encode(chunk.delta.text));
+          fullResponse += chunk.delta.text;
         }
       }
+
       controller.close();
+
+      // Fire-and-forget: log silently after stream ends, never blocks the response
+      logChatExchange(messages, fullResponse, currentCode, ip, userAgent);
     },
   });
 
