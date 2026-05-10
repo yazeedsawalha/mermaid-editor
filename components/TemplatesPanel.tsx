@@ -3,7 +3,7 @@
 import React from "react";
 import {
   GitBranch, ArrowLeftRight, Box, Database, BarChart2,
-  Workflow, PieChart, Network, GitMerge, Layers,
+  Workflow, PieChart, Network, GitMerge, Layers, Route,
 } from "lucide-react";
 import { TEMPLATES } from "@/lib/templates";
 import { useDiagramStore } from "@/lib/store";
@@ -22,6 +22,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Network,
   GitMerge,
   Layers,
+  Route,
 };
 
 export function TemplatesPanel() {

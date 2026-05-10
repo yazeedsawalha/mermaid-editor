@@ -13,16 +13,66 @@ export const TEMPLATES: Template[] = [
     description: "Process flow diagram",
     icon: "GitBranch",
     code: `flowchart TD
-    A([Start]) --> B{Is it working?}
-    B -- Yes --> C[Great!]
-    B -- No --> D[Debug it]
-    D --> E[Fix the bug]
-    E --> B
-    C --> F([End])
+    %% Entry
+    Start([Start]) --> Input[/User Request/]
+    Input --> Valid{Valid Input?}
 
-    style A fill:#22c55e,color:#fff
-    style F fill:#22c55e,color:#fff
-    style B fill:#f59e0b,color:#fff`,
+    %% Validation branch
+    Valid -- No --> ErrMsg[Show Error]
+    ErrMsg --> Input
+    Valid -- Yes --> Auth{Authenticated?}
+
+    %% Auth branch
+    Auth -- No --> Login(Login Page)
+    Login --> Auth
+    Auth -- Yes --> Process
+
+    %% Processing subgraph
+    subgraph Process[Data Processing]
+        direction TB
+        Fetch[(Query DB)] --> Hit{{Cache Hit?}}
+        Hit -- Yes --> Cached[Return Cached]
+        Hit -- No --> Compute[Compute Result]
+        Compute ==> Store[(Persist Result)]
+        Store --> Cached
+        Compute -.-> Log[/Audit Log/]
+    end
+
+    %% Output
+    Cached --> Notify((Notify User))
+    Notify --> Done([Done])
+
+    %% All node shapes reference
+    subgraph Shapes[Node Shape Reference]
+        direction LR
+        s1[Rectangle] --- s2(Rounded)
+        s2 --- s3([Stadium])
+        s3 --- s4[[Subroutine]]
+        s4 --- s5[(Database)]
+        s5 --- s6((Circle))
+        s6 --- s7{Diamond}
+        s7 --- s8{{Hexagon}}
+        s8 --- s9(((Double Circle)))
+    end
+
+    %% Link types reference
+    subgraph Links[Arrow Type Reference]
+        direction LR
+        l1[Arrow] --> l2[Open] --- l3[Dotted] -.-> l4[Thick] ==> l5[Bidir] <--> l6[End]
+    end
+
+    %% Styles
+    classDef green  fill:#22c55e,color:#fff,stroke:#16a34a
+    classDef red    fill:#ef4444,color:#fff,stroke:#dc2626
+    classDef blue   fill:#3b82f6,color:#fff,stroke:#2563eb
+    classDef amber  fill:#f59e0b,color:#fff,stroke:#d97706
+    classDef purple fill:#8b5cf6,color:#fff,stroke:#7c3aed
+
+    class Start,Done green
+    class Auth,Valid,Hit amber
+    class Fetch,Store,Log blue
+    class ErrMsg red
+    class Notify purple`,
   },
   {
     id: "sequence",
@@ -239,5 +289,40 @@ export const TEMPLATES: Template[] = [
     Rel(admin, bankSystem, "Manages", "HTTPS")
     Rel(bankSystem, emailSystem, "Sends emails", "SMTP")
     Rel(bankSystem, paymentGateway, "Processes payments", "API")`,
+  },
+  {
+    id: "userJourney",
+    name: "User Journey",
+    description: "User experience flow",
+    icon: "Route",
+    code: `journey
+    title Customer Onboarding Journey
+
+    %% Sections represent phases of the journey.
+    %% Task syntax:  Task name: score (1–5): Actor1, Actor2
+    %% Score 1 = frustrating, 5 = delightful
+
+    section Discovery
+        Visit website        : 4 : Visitor
+        Read feature list    : 3 : Visitor
+        View pricing page    : 3 : Visitor
+        Watch demo video     : 5 : Visitor
+
+    section Sign Up
+        Fill sign-up form    : 4 : User
+        Verify email address : 2 : User, System
+        Complete profile     : 3 : User
+
+    section First Use
+        Dashboard walkthrough: 5 : User, Support
+        Create first project  : 3 : User
+        Invite a team member  : 4 : User
+        Connect integration   : 2 : User, Admin
+
+    section Growth
+        Daily check-in       : 5 : User
+        Use advanced features : 4 : User
+        Contact support      : 2 : User, Support
+        Upgrade plan         : 5 : User, Sales`,
   },
 ];

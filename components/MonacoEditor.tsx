@@ -7,18 +7,31 @@ import { useDiagramStore } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
 
 const MERMAID_KEYWORDS = [
+  // Diagram types
   "graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram-v2",
-  "erDiagram", "gantt", "pie", "mindmap", "gitGraph", "C4Context",
+  "erDiagram", "gantt", "pie", "mindmap", "gitGraph", "C4Context", "journey",
+  // Flowchart directions
   "TD", "LR", "TB", "RL", "BT",
+  // Flowchart structure
+  "subgraph", "end", "direction", "style", "classDef", "linkStyle", "click",
+  // Sequence diagram
   "participant", "actor", "Note", "loop", "alt", "else", "opt", "par",
-  "activate", "deactivate", "autonumber",
-  "subgraph", "end", "direction",
-  "title", "dateFormat", "excludes", "section",
-  "class", "interface", "enum", "abstract",
-  "state", "choice",
-  "commit", "branch", "checkout", "merge",
-  "style", "classDef", "linkStyle",
-  "click",
+  "activate", "deactivate", "autonumber", "critical", "break",
+  // Gantt
+  "title", "dateFormat", "excludes", "section", "done", "active", "crit", "milestone",
+  // Class diagram
+  "class", "interface", "enum", "abstract", "namespace",
+  // State diagram
+  "state", "choice", "fork", "join", "concurrency",
+  // Git graph
+  "commit", "branch", "checkout", "merge", "cherry-pick", "tag", "order",
+  // User Journey
+  "journey",
+  // Flowchart advanced shapes (v11+)
+  "rect", "circle", "diamond", "stadium", "cylinder", "rounded",
+  "doc", "documents", "lean-r", "lean-l", "cyl", "hex",
+  "tri", "flip-tri", "odd", "cloud", "bolt", "text",
+  "dbl-circ", "cross-circ", "sm-circ",
 ];
 
 const MERMAID_COMPLETIONS = MERMAID_KEYWORDS.map((kw) => ({
@@ -63,17 +76,18 @@ export function MonacoEditor() {
             [/"[^"]*"/, "string"],
             [/'[^']*'/, "string"],
             [
-              /\b(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram-v2|erDiagram|gantt|pie|mindmap|gitGraph|C4Context)\b/,
+              /\b(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram-v2|erDiagram|gantt|pie|mindmap|gitGraph|C4Context|journey)\b/,
               "keyword.control",
             ],
             [/\b(TD|LR|TB|RL|BT)\b/, "keyword"],
             [
-              /\b(subgraph|end|direction|title|participant|actor|Note|loop|alt|else|opt|par|activate|deactivate|autonumber)\b/,
+              /\b(subgraph|end|direction|title|participant|actor|Note|loop|alt|else|opt|par|activate|deactivate|autonumber|critical|break)\b/,
               "keyword",
             ],
-            [/\b(class|interface|enum|abstract|state|choice)\b/, "keyword"],
-            [/\b(commit|branch|checkout|merge)\b/, "keyword"],
+            [/\b(class|interface|enum|abstract|namespace|state|choice|fork|join|concurrency)\b/, "keyword"],
+            [/\b(commit|branch|checkout|merge|cherry-pick|tag|order)\b/, "keyword"],
             [/\b(style|classDef|linkStyle|click)\b/, "keyword"],
+            [/\b(dateFormat|excludes|section|done|active|crit|milestone)\b/, "keyword"],
             [/--?>|===>|-.->|--\|>|===|---|-->|==>/, "operator"],
             [/\[.*?\]/, "string"],
             [/\(.*?\)/, "string"],
