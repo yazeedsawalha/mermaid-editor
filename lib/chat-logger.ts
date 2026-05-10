@@ -8,7 +8,7 @@ interface RawMessage {
 // Derive a stable session fingerprint from IP + User-Agent without storing PII
 function sessionFingerprint(ip: string, userAgent: string): string {
   return createHash("sha256")
-    .update(`${ip}|${userAgent}|${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`)
+    .update(`${ip}|${userAgent}|${process.env.FIREBASE_PROJECT_ID}`)
     .digest("hex")
     .slice(0, 16);
 }
@@ -62,8 +62,8 @@ export async function logChatExchange(
   ip: string,
   userAgent: string
 ): Promise<void> {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const apiKey = process.env.FIREBASE_API_KEY;
 
   if (!projectId || !apiKey) return;
 
