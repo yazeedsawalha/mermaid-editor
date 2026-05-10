@@ -1,9 +1,8 @@
-import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 const SYSTEM_PROMPT = `You are an expert at creating and editing Mermaid diagrams (v11). Your job is to help users create and modify Mermaid diagram code.
@@ -437,18 +436,15 @@ block
 export async function POST(req: NextRequest) {
   const { messages, currentCode } = await req.json();
 
-  // Inject current diagram code as context if present
-  const systemMessage = currentCode
+  const systemPrompt = currentCode
     ? `${SYSTEM_PROMPT}\n\nThe user's current Mermaid diagram code is:\n\`\`\`mermaid\n${currentCode}\n\`\`\``
     : SYSTEM_PROMPT;
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
-    stream: true,
-    messages: [
-      { role: "system", content: systemMessage },
-      ...(messages as ChatCompletionMessageParam[]),
-    ],
+  const stream = await anthropic.messages.stream({
+    model: "claude-opus-4-5",
+    max_tokens: 8096,
+    system: systemPrompt,
+    messages: messages as Anthropic.MessageParam[],
   });
 
   const encoder = new TextEncoder();
@@ -456,9 +452,11 @@ export async function POST(req: NextRequest) {
   const readable = new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content ?? "";
-        if (text) {
-          controller.enqueue(encoder.encode(text));
+        if (
+          chunk.type === "content_block_delta" &&
+          chunk.delta.type === "text_delta"
+        ) {
+          controller.enqueue(encoder.encode(chunk.delta.text));
         }
       }
       controller.close();
