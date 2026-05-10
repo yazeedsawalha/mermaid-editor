@@ -433,6 +433,57 @@ block
 - Supports same node shapes as flowchart
 `;
 
+type OpenAIContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+function toAnthropicMessages(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  messages: any[]
+): Anthropic.MessageParam[] {
+  return messages.map((msg) => {
+    if (typeof msg.content === "string") {
+      return { role: msg.role, content: msg.content } as Anthropic.MessageParam;
+    }
+
+    const content: Anthropic.ContentBlockParam[] = (
+      msg.content as OpenAIContentBlock[]
+    ).map((block) => {
+      if (block.type === "text") {
+        return { type: "text", text: block.text };
+      }
+
+      if (block.type === "image_url") {
+        const url = block.image_url.url;
+        const match = url.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          return {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: match[1] as
+                | "image/jpeg"
+                | "image/png"
+                | "image/gif"
+                | "image/webp",
+              data: match[2],
+            },
+          };
+        }
+        // Plain URL — use url source type
+        return {
+          type: "image",
+          source: { type: "url", url },
+        };
+      }
+
+      return { type: "text", text: "" };
+    });
+
+    return { role: msg.role, content } as Anthropic.MessageParam;
+  });
+}
+
 export async function POST(req: NextRequest) {
   const { messages, currentCode } = await req.json();
 
@@ -444,7 +495,7 @@ export async function POST(req: NextRequest) {
     model: "claude-opus-4-5",
     max_tokens: 8096,
     system: systemPrompt,
-    messages: messages as Anthropic.MessageParam[],
+    messages: toAnthropicMessages(messages),
   });
 
   const encoder = new TextEncoder();
